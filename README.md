@@ -1,10 +1,6 @@
 # FigVibe - Universal Export Plugin
 
 <p align="center">
-  <img width="1482" alt="Figma to Code Plugin" src="https://github.com/user-attachments/assets/795d12b2-ada4-4df2-970d-7c977d603fa3">
-</p>
-
-<p align="center">
   <strong>FigVibe transforms any Figma design into production-ready code for 7+ frameworks and platforms</strong>
 </p>
 
