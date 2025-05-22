@@ -5,36 +5,35 @@ function extractProperties(node: SceneNode) {
     id: node.id,
     name: node.name,
     type: node.type,
-    x: node.x,
-    y: node.y,
-    width: node.width,
-    height: node.height,
-    rotation: node.rotation,
-    opacity: node.opacity,
     visible: node.visible,
   };
+
+  // Only add geometric properties for nodes that have them
+  if ('x' in node) props.x = node.x;
+  if ('y' in node) props.y = node.y;
+  if ('width' in node) props.width = node.width;
+  if ('height' in node) props.height = node.height;
+  if ('rotation' in node) props.rotation = node.rotation;
+  if ('opacity' in node) props.opacity = node.opacity;
 
   if ('fills' in node && node.fills !== figma.mixed) {
     props.fills = node.fills;
   }
 
-  if ('strokes' in node && node.strokes !== figma.mixed) {
+  if ('strokes' in node && Array.isArray(node.strokes)) {
     props.strokes = node.strokes;
     props.strokeWeight = (node as GeometryMixin & SceneNode).strokeWeight;
   }
 
   if ('cornerRadius' in node) {
-    const cornerNode = node as GeometryMixin & CornerMixin;
-    if (typeof cornerNode.cornerRadius === 'number') {
-      props.cornerRadius = cornerNode.cornerRadius;
-    } else {
-      props.cornerRadius = {
-        topLeft: cornerNode.topLeftRadius,
-        topRight: cornerNode.topRightRadius,
-        bottomLeft: cornerNode.bottomLeftRadius,
-        bottomRight: cornerNode.bottomRightRadius,
-      };
-    }
+    const cornerNode = node as CornerMixin;
+    props.cornerRadius = cornerNode.cornerRadius;
+    
+    // Individual corner radius properties (if they exist)
+    if ('topLeftRadius' in cornerNode) props.topLeftRadius = cornerNode.topLeftRadius;
+    if ('topRightRadius' in cornerNode) props.topRightRadius = cornerNode.topRightRadius;
+    if ('bottomLeftRadius' in cornerNode) props.bottomLeftRadius = cornerNode.bottomLeftRadius;
+    if ('bottomRightRadius' in cornerNode) props.bottomRightRadius = cornerNode.bottomRightRadius;
   }
 
   if ('effects' in node) {
