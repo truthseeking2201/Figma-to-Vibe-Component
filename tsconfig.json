@@ -1,15 +1,29 @@
 {
   "compilerOptions": {
-    "target": "es6",
-    "outDir": "dist",
-    "jsx": "react",
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "experimentalDecorators": true,
+    "target": "ES5",
+    "lib": ["ES5", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "removeComments": true,
-    "noImplicitAny": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "CommonJS",
     "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "noEmit": false,
+    "downlevelIteration": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "typeRoots": ["./node_modules/@types", "./node_modules/@figma"]
-  }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "Figma to Cursor",
+  "name": "FigVibe",
   "id": "1434599500152464568",
   "networkAccess": { "allowedDomains": ["https://designwithprompts.com"] },
   "documentAccess": "dynamic-page",

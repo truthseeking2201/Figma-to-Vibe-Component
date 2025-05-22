@@ -1,417 +1,501 @@
-import * as React from 'react';
+/**
+ * FigVibe - Enhanced Multi-Format Export UI
+ */
 
-interface NodeProperty {
-  key: string;
-  value: any;
-  type: string;
+import React, { useState, useEffect, useCallback } from "react";
+import * as Select from "@radix-ui/react-select";
+import * as Switch from "@radix-ui/react-switch";
+import * as Tabs from "@radix-ui/react-tabs";
+import {
+  Download,
+  Copy,
+  Settings,
+  Code2,
+  FileText,
+  Layers,
+} from "lucide-react";
+import JSZip from "jszip";
+
+import {
+  getAvailableSerializers,
+  getSerializer,
+  initializeSerializers,
+  type GeneratedFile,
+  type SerializerOptions,
+} from "../../serializers";
+import type { FigmaIRNode } from "../../core/figma-ir";
+
+interface AppState {
+  selectedNode: FigmaIRNode | null;
+  metadata: unknown | null;
+  selectedFormat: string;
+  serializerOptions: SerializerOptions;
+  generatedFiles: readonly GeneratedFile[];
+  isGenerating: boolean;
+  activeFileIndex: number;
 }
 
-const styles = {
-  container: {
-    padding: '16px',
-    height: '100vh',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#fafafa',
-    overflow: 'auto',
+const INITIAL_STATE: AppState = {
+  selectedNode: null,
+  metadata: null,
+  selectedFormat: "react",
+  serializerOptions: {
+    inlineCss: true,
+    useTailwind: false,
+    nullSafety: true,
+    iosCompat: false,
+    exportAsComponent: true,
+    componentName: "",
   },
-  emptyState: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    textAlign: 'center' as const,
-  },
-  emptyCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '32px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e5e7eb',
-    maxWidth: '280px',
-    width: '100%',
-  },
-  emptyIcon: {
-    width: '48px',
-    height: '48px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 auto 16px',
-  },
-  emptyTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0 0 8px 0',
-  },
-  emptyDescription: {
-    fontSize: '14px',
-    color: '#6b7280',
-    margin: '0',
-  },
-  header: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '16px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e5e7eb',
-  },
-  headerContent: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  headerIcon: {
-    width: '32px',
-    height: '32px',
-    backgroundColor: '#3b82f6',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-  },
-  headerText: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-  },
-  layerName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0',
-  },
-  layerType: {
-    fontSize: '12px',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    padding: '2px 8px',
-    borderRadius: '12px',
-    border: '1px solid #d1d5db',
-    display: 'inline-block',
-  },
-  copyButton: {
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    fontSize: '12px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s ease',
-  },
-  copyButtonCopied: {
-    backgroundColor: '#10b981',
-  },
-  copyButtonDisabled: {
-    backgroundColor: '#9ca3af',
-    cursor: 'not-allowed',
-  },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '16px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e5e7eb',
-  },
-  sectionTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0 0 12px 0',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  propertiesGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '8px',
-  },
-  propertyItem: {
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    padding: '12px',
-  },
-  propertyHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '6px',
-  },
-  propertyKey: {
-    fontSize: '11px',
-    fontWeight: '500',
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.025em',
-  },
-  propertyType: {
-    fontSize: '10px',
-    padding: '2px 6px',
-    borderRadius: '6px',
-    fontWeight: '500',
-    textTransform: 'uppercase' as const,
-  },
-  propertyValue: {
-    fontSize: '12px',
-    fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", monospace',
-    color: '#111827',
-    wordBreak: 'break-all' as const,
-    lineHeight: '1.4',
-  },
-  jsonContainer: {
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    padding: '16px',
-    overflow: 'auto',
-    maxHeight: '300px',
-  },
-  jsonPre: {
-    fontSize: '11px',
-    fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", monospace',
-    color: '#334155',
-    margin: '0',
-    lineHeight: '1.5',
-    whiteSpace: 'pre-wrap' as const,
-  },
-  scrollbar: {
-    scrollbarWidth: 'thin' as const,
-    scrollbarColor: '#cbd5e1 transparent',
-  },
+  generatedFiles: [],
+  isGenerating: false,
+  activeFileIndex: 0,
 };
 
 const App: React.FC = () => {
-  const [properties, setProperties] = React.useState<string>('');
-  const [parsedData, setParsedData] = React.useState<any>(null);
-  const [copied, setCopied] = React.useState(false);
-  const [selectedNode, setSelectedNode] = React.useState<string>('');
+  const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const [copied, setCopied] = useState(false);
 
+  // Initialize serializers on mount
   React.useEffect(() => {
+    try {
+      initializeSerializers();
+      console.log("Serializers initialized successfully");
+      const serializers = getAvailableSerializers();
+      console.log(
+        "Available serializers:",
+        serializers.map((s) => s.id),
+      );
+    } catch (error) {
+      console.error("Error initializing serializers:", error);
+    }
+  }, []);
+
+  const generateCode = useCallback(async () => {
+    if (!state.selectedNode) return;
+
+    setState((prev) => Object.assign({}, prev, { isGenerating: true }));
+
+    try {
+      const serializer = getSerializer(state.selectedFormat);
+      if (!serializer) {
+        console.error("Serializer not found:", state.selectedFormat);
+        return;
+      }
+
+      const files = await serializer.generate(state.selectedNode, {
+        options: state.serializerOptions,
+        prettierOptions: {
+          printWidth: 100,
+          tabWidth: 2,
+          useTabs: false,
+          semi: true,
+          singleQuote: true,
+          trailingComma: "es5",
+        },
+      });
+
+      setState((prev) =>
+        Object.assign({}, prev, {
+          generatedFiles: files,
+          activeFileIndex: 0,
+          isGenerating: false,
+        }),
+      );
+    } catch (error) {
+      console.error("Error generating code:", error);
+      setState((prev) => Object.assign({}, prev, { isGenerating: false }));
+    }
+  }, [state.selectedNode, state.selectedFormat, state.serializerOptions]);
+
+  // Handle messages from plugin
+  useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
         const { pluginMessage } = event.data;
-        if (pluginMessage && pluginMessage.type === 'selection-properties') {
+        if (pluginMessage && pluginMessage.type === "selection-changed") {
           if (pluginMessage.data) {
-            const formatted = JSON.stringify(pluginMessage.data, null, 2);
-            setProperties(formatted);
-            setParsedData(pluginMessage.data);
-            setSelectedNode(pluginMessage.data.name || 'Unnamed Layer');
+            setState((prev) =>
+              Object.assign({}, prev, {
+                selectedNode: pluginMessage.data.node,
+                metadata: pluginMessage.data.metadata,
+                generatedFiles: [],
+                activeFileIndex: 0,
+              }),
+            );
           } else {
-            setProperties('');
-            setParsedData(null);
-            setSelectedNode('');
+            setState((prev) =>
+              Object.assign({}, prev, {
+                selectedNode: null,
+                metadata: null,
+                generatedFiles: [],
+                activeFileIndex: 0,
+              }),
+            );
           }
         }
       } catch (error) {
-        console.error('Error handling message:', error);
+        console.error("Error handling message:", error);
       }
     };
 
-    window.addEventListener('message', handleMessage);
-    
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
+  // Generate code when format or options change
+  useEffect(() => {
+    if (state.selectedNode) {
+      generateCode();
+    }
+  }, [
+    state.selectedNode,
+    state.selectedFormat,
+    state.serializerOptions,
+    generateCode,
+  ]);
+
   const copyToClipboard = async () => {
+    if (state.generatedFiles.length === 0) return;
+
+    const activeFile = state.generatedFiles[state.activeFileIndex];
+    if (!activeFile) return;
+
     try {
-      if (properties) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(properties);
-        } else {
-          const textArea = document.createElement('textarea');
-          textArea.value = properties;
-          textArea.style.position = 'fixed';
-          textArea.style.left = '-999999px';
-          textArea.style.top = '-999999px';
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          document.execCommand('copy');
-          document.body.removeChild(textArea);
-        }
-        
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(activeFile.code);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = activeFile.code;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
       }
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
     }
   };
 
-  const getPropertyType = (value: any): string => {
-    if (Array.isArray(value)) return 'array';
-    if (value === null) return 'null';
-    return typeof value;
-  };
+  const downloadFiles = async () => {
+    if (state.generatedFiles.length === 0) return;
 
-  const getTypeStyle = (type: string) => {
-    const baseStyle = { ...styles.propertyType };
-    switch (type) {
-      case 'string':
-        return { ...baseStyle, backgroundColor: '#dcfce7', color: '#166534' };
-      case 'number':
-        return { ...baseStyle, backgroundColor: '#dbeafe', color: '#1d4ed8' };
-      case 'boolean':
-        return { ...baseStyle, backgroundColor: '#f3e8ff', color: '#7c3aed' };
-      case 'object':
-        return { ...baseStyle, backgroundColor: '#fed7aa', color: '#c2410c' };
-      case 'array':
-        return { ...baseStyle, backgroundColor: '#fce7f3', color: '#be185d' };
-      default:
-        return { ...baseStyle, backgroundColor: '#f3f4f6', color: '#374151' };
+    if (state.generatedFiles.length === 1) {
+      // Single file download
+      const file = state.generatedFiles[0]!;
+      const blob = new Blob([file.code], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // Multiple files - create ZIP
+      const zip = new JSZip();
+
+      for (const file of state.generatedFiles) {
+        zip.file(file.filename, file.code);
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${state.selectedNode ? state.selectedNode.name : "figma-export"}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
   };
 
-  const renderPropertyValue = (value: any): string => {
-    if (typeof value === 'object' && value !== null) {
-      return JSON.stringify(value);
-    }
-    return String(value);
+  const updateOption = (key: keyof SerializerOptions, value: unknown) => {
+    setState((prev) =>
+      Object.assign({}, prev, {
+        serializerOptions: Object.assign({}, prev.serializerOptions, {
+          [key]: value,
+        }),
+      }),
+    );
   };
 
-  const getKeyProperties = (data: any): NodeProperty[] => {
-    if (!data) return [];
-    
-    const keyProps = ['name', 'type', 'width', 'height', 'x', 'y', 'rotation', 'opacity'];
-    return keyProps
-      .filter(key => data.hasOwnProperty(key))
-      .map(key => ({
-        key,
-        value: data[key],
-        type: getPropertyType(data[key])
-      }));
-  };
+  const serializers = getAvailableSerializers();
+  const currentSerializer = getSerializer(state.selectedFormat);
+  const activeFile = state.generatedFiles[state.activeFileIndex];
 
-  if (!parsedData) {
+  if (!state.selectedNode) {
     return (
-      <div style={styles.container}>
-        <div style={styles.emptyState}>
-          <div style={styles.emptyCard}>
-            <div style={styles.emptyIcon}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
-            <h3 style={styles.emptyTitle}>No Layer Selected</h3>
-            <p style={styles.emptyDescription}>
-              Select a layer in Figma to view its properties
-            </p>
+      <div className="h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Layers className="w-8 h-8 text-blue-600" />
           </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No Selection
+          </h3>
+          <p className="text-gray-600 text-sm">
+            Select one or more layers in Figma to generate code
+          </p>
         </div>
       </div>
     );
   }
 
-  const keyProperties = getKeyProperties(parsedData);
-  const buttonStyle = {
-    ...styles.copyButton,
-    ...(copied ? styles.copyButtonCopied : {}),
-    ...(!properties ? styles.copyButtonDisabled : {}),
-  };
-
   return (
-    <div style={styles.container}>
+    <div className="h-screen bg-white flex flex-col">
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerContent}>
-          <div style={styles.headerLeft}>
-            <div style={styles.headerIcon}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
-              </svg>
+      <div className="border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Code2 className="w-4 h-4 text-white" />
             </div>
-            <div style={styles.headerText}>
-              <h3 style={styles.layerName}>{selectedNode}</h3>
-              <span style={styles.layerType}>{parsedData.type}</span>
+            <div>
+              <h1 className="font-semibold text-gray-900">
+                {state.selectedNode.name}
+              </h1>
+              <p className="text-xs text-gray-500 capitalize">
+                {state.selectedNode.type}
+              </p>
             </div>
           </div>
-          <button 
-            onClick={copyToClipboard} 
-            disabled={!properties}
-            style={buttonStyle}
-          >
-            {copied ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20,6 9,17 4,12"/>
-                </svg>
-                Copied!
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                Copy
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyToClipboard}
+              disabled={!activeFile}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {copied ? <span>✓</span> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button
+              onClick={downloadFiles}
+              disabled={state.generatedFiles.length === 0}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Save
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Key Properties */}
-      {keyProperties.length > 0 && (
-        <div style={styles.section}>
-          <h4 style={styles.sectionTitle}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            Key Properties
-          </h4>
-          <div style={styles.propertiesGrid}>
-            {keyProperties.map(({ key, value, type }) => (
-              <div key={key} style={styles.propertyItem}>
-                <div style={styles.propertyHeader}>
-                  <span style={styles.propertyKey}>{key}</span>
-                  <span style={getTypeStyle(type)}>{type}</span>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
+          {/* Format Selector */}
+          <div className="p-4 border-b border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Export Format
+            </label>
+            <Select.Root
+              value={state.selectedFormat}
+              onValueChange={(value) =>
+                setState((prev) =>
+                  Object.assign({}, prev, { selectedFormat: value }),
+                )
+              }
+            >
+              <Select.Trigger className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <Select.Value />
+                <Select.Icon>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </Select.Icon>
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Content className="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+                  <Select.Viewport>
+                    {serializers.map((serializer) => (
+                      <Select.Item
+                        key={serializer.id}
+                        value={serializer.id}
+                        className="flex items-center px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                      >
+                        <Select.ItemText>{serializer.label}</Select.ItemText>
+                      </Select.Item>
+                    ))}
+                  </Select.Viewport>
+                </Select.Content>
+              </Select.Portal>
+            </Select.Root>
+            {currentSerializer && (
+              <p className="text-xs text-gray-500 mt-1">
+                {currentSerializer.description}
+              </p>
+            )}
+          </div>
+
+          {/* Options */}
+          {currentSerializer &&
+            currentSerializer.supportedOptions.length > 0 && (
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Settings className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Options
+                  </span>
                 </div>
-                <div style={styles.propertyValue} title={renderPropertyValue(value)}>
-                  {renderPropertyValue(value).length > 20 
-                    ? renderPropertyValue(value).substring(0, 20) + '...'
-                    : renderPropertyValue(value)
-                  }
+                <div className="space-y-3">
+                  {currentSerializer.supportedOptions.includes("inlineCss") && (
+                    <label className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">Inline CSS</span>
+                      <Switch.Root
+                        checked={state.serializerOptions.inlineCss}
+                        onCheckedChange={(checked) =>
+                          updateOption("inlineCss", checked)
+                        }
+                        className="w-8 h-4 bg-gray-200 rounded-full data-[state=checked]:bg-blue-600"
+                      >
+                        <Switch.Thumb className="block w-3 h-3 bg-white rounded-full transition-transform duration-100 translate-x-0.5 data-[state=checked]:translate-x-4" />
+                      </Switch.Root>
+                    </label>
+                  )}
+                  {currentSerializer.supportedOptions.includes(
+                    "useTailwind",
+                  ) && (
+                    <label className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">
+                        Use Tailwind
+                      </span>
+                      <Switch.Root
+                        checked={state.serializerOptions.useTailwind}
+                        onCheckedChange={(checked) =>
+                          updateOption("useTailwind", checked)
+                        }
+                        className="w-8 h-4 bg-gray-200 rounded-full data-[state=checked]:bg-blue-600"
+                      >
+                        <Switch.Thumb className="block w-3 h-3 bg-white rounded-full transition-transform duration-100 translate-x-0.5 data-[state=checked]:translate-x-4" />
+                      </Switch.Root>
+                    </label>
+                  )}
+                  {currentSerializer.supportedOptions.includes(
+                    "componentName",
+                  ) && (
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Component Name
+                      </label>
+                      <input
+                        type="text"
+                        value={state.serializerOptions.componentName || ""}
+                        onChange={(e) =>
+                          updateOption("componentName", e.target.value)
+                        }
+                        placeholder="Auto-generated"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            )}
+
+          {/* Layer Info */}
+          <div className="p-4 flex-1 overflow-auto">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">
+              Layer Properties
+            </h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Size:</span>
+                <span>
+                  {Math.round(state.selectedNode.width)} ×{" "}
+                  {Math.round(state.selectedNode.height)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Position:</span>
+                <span>
+                  {Math.round(state.selectedNode.x)},{" "}
+                  {Math.round(state.selectedNode.y)}
+                </span>
+              </div>
+              {state.selectedNode.opacity !== 1 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Opacity:</span>
+                  <span>{Math.round(state.selectedNode.opacity * 100)}%</span>
+                </div>
+              )}
+              {"children" in state.selectedNode &&
+                state.selectedNode.children && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Children:</span>
+                    <span>{state.selectedNode.children.length}</span>
+                  </div>
+                )}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Full JSON */}
-      <div style={styles.section}>
-        <h4 style={styles.sectionTitle}>Complete JSON Properties</h4>
-        <div style={{ ...styles.jsonContainer, ...styles.scrollbar }}>
-          <pre style={styles.jsonPre}>{properties}</pre>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {state.isGenerating ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600">Generating code...</p>
+              </div>
+            </div>
+          ) : state.generatedFiles.length > 0 ? (
+            <>
+              {/* File Tabs */}
+              {state.generatedFiles.length > 1 && (
+                <Tabs.Root
+                  value={state.activeFileIndex.toString()}
+                  onValueChange={(value) =>
+                    setState((prev) =>
+                      Object.assign({}, prev, {
+                        activeFileIndex: parseInt(value),
+                      }),
+                    )
+                  }
+                >
+                  <Tabs.List className="flex border-b border-gray-200 bg-gray-50">
+                    {state.generatedFiles.map((file, index) => (
+                      <Tabs.Trigger
+                        key={index}
+                        value={index.toString()}
+                        className="px-4 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-900 data-[state=active]:text-blue-600 data-[state=active]:border-blue-600"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        {file.filename}
+                      </Tabs.Trigger>
+                    ))}
+                  </Tabs.List>
+                </Tabs.Root>
+              )}
+
+              {/* Code Display */}
+              <div className="flex-1 overflow-auto">
+                {activeFile && (
+                  <pre className="p-4 text-sm font-mono bg-gray-900 text-gray-100 h-full overflow-auto">
+                    <code>{activeFile.code}</code>
+                  </pre>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-gray-500">No code generated</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

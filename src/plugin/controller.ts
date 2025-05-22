@@ -1,94 +1,167 @@
-figma.showUI(__html__, { width: 400, height: 300 });
+/**
+ * FigVibe Plugin Controller - Enhanced multi-format export
+ */
 
-function extractProperties(node: SceneNode) {
-  const props: Record<string, any> = {
-    id: node.id,
-    name: node.name,
-    type: node.type,
-    visible: node.visible,
-  };
+import { normalizeNode } from "../core/normalise";
+import type { FigmaIRNode } from "../core/figma-ir";
 
-  // Only add geometric properties for nodes that have them
-  if ('x' in node) props.x = node.x;
-  if ('y' in node) props.y = node.y;
-  if ('width' in node) props.width = node.width;
-  if ('height' in node) props.height = node.height;
-  if ('rotation' in node) props.rotation = node.rotation;
-  if ('opacity' in node) props.opacity = node.opacity;
+// Show UI with larger dimensions for the enhanced interface
+figma.showUI(__html__, { width: 600, height: 800 });
 
-  if ('fills' in node && node.fills !== figma.mixed) {
-    props.fills = node.fills;
-  }
-
-  if ('strokes' in node && Array.isArray(node.strokes)) {
-    props.strokes = node.strokes;
-    props.strokeWeight = (node as GeometryMixin & SceneNode).strokeWeight;
-  }
-
-  if ('cornerRadius' in node) {
-    const cornerNode = node as CornerMixin;
-    props.cornerRadius = cornerNode.cornerRadius;
-    
-    // Individual corner radius properties (if they exist)
-    if ('topLeftRadius' in cornerNode) props.topLeftRadius = cornerNode.topLeftRadius;
-    if ('topRightRadius' in cornerNode) props.topRightRadius = cornerNode.topRightRadius;
-    if ('bottomLeftRadius' in cornerNode) props.bottomLeftRadius = cornerNode.bottomLeftRadius;
-    if ('bottomRightRadius' in cornerNode) props.bottomRightRadius = cornerNode.bottomRightRadius;
-  }
-
-  if ('effects' in node) {
-    props.effects = node.effects;
-  }
-
-  if ('constraints' in node) {
-    props.constraints = node.constraints;
-  }
-
-  if ('layoutMode' in node) {
-    const layoutNode = node as FrameNode;
-    props.layoutMode = layoutNode.layoutMode;
-    props.primaryAxisSizingMode = layoutNode.primaryAxisSizingMode;
-    props.counterAxisSizingMode = layoutNode.counterAxisSizingMode;
-    props.itemSpacing = layoutNode.itemSpacing;
-    props.paddingLeft = layoutNode.paddingLeft;
-    props.paddingRight = layoutNode.paddingRight;
-    props.paddingTop = layoutNode.paddingTop;
-    props.paddingBottom = layoutNode.paddingBottom;
-  }
-
-  if (node.type === 'TEXT') {
-    const textNode = node as TextNode;
-    props.characters = textNode.characters;
-    props.fontName = textNode.fontName;
-    props.fontSize = textNode.fontSize;
-    props.textAlignHorizontal = textNode.textAlignHorizontal;
-    props.textAlignVertical = textNode.textAlignVertical;
-    props.lineHeight = textNode.lineHeight;
-    props.letterSpacing = textNode.letterSpacing;
-  }
-
-  return props;
+interface PluginMessage {
+  type: "selection-changed" | "export-code" | "get-serializers";
+  data?: any;
 }
 
-function collectNodeProperties(node: SceneNode): any {
-  const props = extractProperties(node);
-  if ('children' in node) {
-    props.children = node.children.map(collectNodeProperties);
-  }
-  return props;
+function collectNodeTree(node: SceneNode): FigmaIRNode {
+  return normalizeNode(node);
 }
 
-function sendSelectionProperties() {
+function sendSelectionData(): void {
   const selection = figma.currentPage.selection;
+
   if (selection.length === 1) {
-    const node = selection[0];
-    const data = collectNodeProperties(node);
-    figma.ui.postMessage({ type: 'selection-properties', data });
+    try {
+      const node = selection[0];
+      const normalizedData = collectNodeTree(node);
+
+      figma.ui.postMessage({
+        type: "selection-changed",
+        data: {
+          node: normalizedData,
+          metadata: {
+            fileId: figma.fileKey || "unknown",
+            fileName: figma.root.name || "Untitled",
+            version: "1.0.0",
+            exportedAt: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error processing selection:", error);
+      figma.ui.postMessage({
+        type: "selection-changed",
+        data: null,
+      });
+    }
+  } else if (selection.length > 1) {
+    // Handle multiple selection - create a virtual group
+    const bounds = selection.reduce(
+      (acc, node) => {
+        if ("x" in node && "y" in node && "width" in node && "height" in node) {
+          return {
+            left: Math.min(acc.left, node.x),
+            top: Math.min(acc.top, node.y),
+            right: Math.max(acc.right, node.x + node.width),
+            bottom: Math.max(acc.bottom, node.y + node.height),
+          };
+        }
+        return acc;
+      },
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+    );
+
+    // Create a virtual group node
+    const virtualGroup: FigmaIRNode = {
+      id: "virtual-group",
+      name: "Multiple Selection",
+      type: "group",
+      visible: true,
+      locked: false,
+      x: bounds.left,
+      y: bounds.top,
+      width: bounds.right - bounds.left,
+      height: bounds.bottom - bounds.top,
+      rotation: 0,
+      opacity: 1,
+      fills: [],
+      strokes: [],
+      effects: [],
+      constraints: { horizontal: "left", vertical: "top" },
+      cornerRadius: {},
+      blendMode: "normal",
+      exportSettings: [],
+      children: selection.map(collectNodeTree),
+    };
+
+    figma.ui.postMessage({
+      type: "selection-changed",
+      data: {
+        node: virtualGroup,
+        metadata: {
+          fileId: figma.fileKey || "unknown",
+          fileName: figma.root.name || "Untitled",
+          version: "1.0.0",
+          exportedAt: new Date().toISOString(),
+        },
+      },
+    });
   } else {
-    figma.ui.postMessage({ type: 'selection-properties', data: null });
+    figma.ui.postMessage({
+      type: "selection-changed",
+      data: null,
+    });
   }
 }
 
-sendSelectionProperties();
+// Handle messages from UI
+figma.ui.onmessage = (msg: PluginMessage) => {
+  switch (msg.type) {
+    case "get-serializers":
+      // Send available serializers info to UI
+      figma.ui.postMessage({
+        type: "serializers-list",
+        data: [
+          {
+            id: "json",
+            label: "JSON",
+            description: "Raw Figma IR as formatted JSON",
+          },
+          {
+            id: "html",
+            label: "HTML/CSS",
+            description: "Static HTML with CSS styling",
+          },
+          {
+            id: "react",
+            label: "React",
+            description: "React functional component",
+          },
+          {
+            id: "flutter",
+            label: "Flutter",
+            description: "Flutter Dart widget",
+          },
+          {
+            id: "swiftui",
+            label: "SwiftUI",
+            description: "SwiftUI view for iOS/macOS",
+          },
+        ],
+      });
+      break;
 
-figma.on('selectionchange', sendSelectionProperties);
+    case "export-code":
+      // The actual code generation happens in the UI
+      // This just confirms the export request
+      figma.ui.postMessage({
+        type: "export-confirmed",
+        data: msg.data,
+      });
+      break;
+
+    default:
+      console.warn("Unknown message type:", msg.type);
+  }
+};
+
+// Initialize
+sendSelectionData();
+
+// Listen for selection changes
+figma.on("selectionchange", sendSelectionData);
+
+// Cleanup on close
+figma.on("close", () => {
+  // Plugin cleanup if needed
+});
