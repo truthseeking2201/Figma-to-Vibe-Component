@@ -1,0 +1,28 @@
+# Git Tag Information
+
+## Version Tag: v2.1.0-clean-code
+
+**Commit Hash**: 2ec784a
+**Date**: May 23, 2025
+
+To create this tag in git:
+```bash
+git tag -a v2.1.0-clean-code -m "Clean code generation with CSS modules, semantic HTML, and improved stability"
+```
+
+To rollback to this version later:
+```bash
+# Using commit hash
+git checkout 2ec784a
+
+# Or using tag (after creating it)
+git checkout v2.1.0-clean-code
+```
+
+## Summary of this version:
+- Clean React components with CSS modules
+- Semantic HTML5 structure
+- Flexbox layouts for auto-layout
+- Handles complex designs (1000+ children)
+- Clear error messages
+- Stable and performant

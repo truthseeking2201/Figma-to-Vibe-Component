@@ -1,0 +1,67 @@
+{
+  "name": "figvibe",
+  "version": "2.2.0",
+  "description": "FigVibe - Multi-format Figma to code export plugin with support for HTML, React, Flutter, SwiftUI, and more",
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack --mode=production",
+    "build:watch": "webpack --mode=development --watch",
+    "dev": "webpack --mode=development --watch",
+    "lint": "eslint src --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "prettier": "prettier --write '**/*.{js,jsx,ts,tsx,css,json,md}'",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "@radix-ui/react-select": "^2.1.2",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.1.1",
+    "@radix-ui/react-tabs": "^1.1.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.511.0",
+    "prettier": "^3.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@figma/plugin-typings": "^1.50.0",
+    "@types/jszip": "^3.4.1",
+    "@types/react": "^18.0.17",
+    "@types/react-dom": "^18.0.6",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "css-loader": "^6.7.1",
+    "eslint": "^8.57.0",
+    "eslint-config-turbo": "^2.0.0",
+    "eslint-plugin-functional": "^6.0.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "html-webpack-plugin": "^5.5.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "react-dev-utils": "^12.0.1",
+    "style-loader": "^3.3.1",
+    "ts-loader": "^9.3.1",
+    "typescript": "^5.0.0",
+    "url-loader": "^4.1.1",
+    "vitest": "^2.0.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json,md}": [
+      "prettier --write"
+    ]
+  }
+}
