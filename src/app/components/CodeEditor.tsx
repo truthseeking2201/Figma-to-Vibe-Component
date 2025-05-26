@@ -14,7 +14,7 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
-import { Button } from "./UIComponents";
+import { Button, Badge } from "./UIComponents";
 
 interface CodeEditorProps {
   code: string;
@@ -119,7 +119,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         <div className="code-filename">
           {getFileIcon(language)}
           <span className="font-medium text-neutral-100">{filename}</span>
-          <Badge variant="neutral" size="sm">
+          <Badge variant="info">
             {getLanguageLabel(language)}
           </Badge>
         </div>
@@ -176,39 +176,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         loading={<EditorLoading />}
       />
     </div>
-  );
-};
-
-// Badge Component for language label
-interface BadgeProps {
-  variant?: "neutral" | "success" | "error" | "warning";
-  size?: "sm" | "md";
-  children: React.ReactNode;
-}
-
-const Badge: React.FC<BadgeProps> = ({
-  variant = "neutral",
-  size = "md",
-  children,
-}) => {
-  const variantClasses = {
-    neutral: "bg-neutral-800 text-neutral-300",
-    success: "bg-success-900/20 text-success-400",
-    error: "bg-error-900/20 text-error-400",
-    warning: "bg-brand-900/20 text-brand-400",
-  };
-
-  const sizeClasses = {
-    sm: "px-1.5 py-0.5 text-xs",
-    md: "px-2 py-0.5 text-xs",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-md font-medium ${variantClasses[variant]} ${sizeClasses[size]}`}
-    >
-      {children}
-    </span>
   );
 };
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./components/App";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "../styles/design-system.css";
 
 function waitForDOMReady(): Promise<void> {
@@ -24,7 +25,11 @@ async function initializeApp(): Promise<void> {
     }
 
     const root = createRoot(container);
-    root.render(<App />);
+    root.render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
   } catch (error) {
     console.error("Failed to initialize app:", error);
     document.body.innerHTML = `

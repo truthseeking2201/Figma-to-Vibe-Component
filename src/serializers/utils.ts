@@ -18,7 +18,10 @@ export function rgbaToString(color: FigmaColor): string {
 }
 
 export function rgbaToHex(color: FigmaColor): string {
-  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  const toHex = (n: number) => {
+    const clamped = Math.max(0, Math.min(255, Math.round(n)));
+    return clamped.toString(16).padStart(2, "0");
+  };
   if (color.a === 1) {
     return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
   }
@@ -30,6 +33,7 @@ export function fillToCss(fill: FigmaFill): string {
     case "solid": {
       const opacity = fill.opacity !== undefined ? fill.opacity : 1;
       const color = fill.color;
+      if (!color) return "transparent";
       if (opacity < 1) {
         return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a * opacity})`;
       }
@@ -53,10 +57,11 @@ export function fillToCss(fill: FigmaFill): string {
 
       // Calculate gradient angle from transform matrix if available
       let angle = "90deg";
-      if (gradient.transform && gradient.transform.length >= 2) {
+      if (gradient.transform && Array.isArray(gradient.transform) && gradient.transform.length >= 2) {
         const matrix = gradient.transform;
-        const a = matrix[0]?.[0] || 1;
-        const b = matrix[0]?.[1] || 0;
+        const row0 = Array.isArray(matrix[0]) ? matrix[0] : [];
+        const a = typeof row0[0] === 'number' ? row0[0] : 1;
+        const b = typeof row0[1] === 'number' ? row0[1] : 0;
         const angleRad = Math.atan2(b, a);
         const angleDeg = (angleRad * 180) / Math.PI;
         angle = `${Math.round(angleDeg)}deg`;
@@ -87,8 +92,9 @@ export function fillToCss(fill: FigmaFill): string {
 }
 
 export function strokeToCss(stroke: FigmaStroke): string {
+  const weight = typeof stroke.weight === 'number' ? stroke.weight : 1;
   const color = stroke.color ? rgbaToString(stroke.color) : "transparent";
-  return `${stroke.weight}px solid ${color}`;
+  return `${weight}px solid ${color}`;
 }
 
 export function effectToCss(effect: FigmaEffect): string {
@@ -113,6 +119,9 @@ export function effectToCss(effect: FigmaEffect): string {
 }
 
 export function cornerRadiusToCss(radius: FigmaCornerRadius): string {
+  if (!radius || typeof radius !== 'object') {
+    return "0px";
+  }
   if (radius.all !== undefined) {
     return `${radius.all}px`;
   }
@@ -134,7 +143,7 @@ export function cornerRadiusToCss(radius: FigmaCornerRadius): string {
 }
 
 export function toCamelCase(str: string): string {
-  return str.replace(/-([a-z])/g, (g) => g[1]!.toUpperCase());
+  return str.replace(/-([a-z])/g, (_, letter) => letter ? letter.toUpperCase() : "");
 }
 
 export function toPascalCase(str: string): string {

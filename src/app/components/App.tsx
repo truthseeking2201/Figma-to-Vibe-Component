@@ -3,7 +3,7 @@
  * Clean, elegant, and pixel-perfect design
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Code2, Layers, Sparkles, Package, Moon, Sun } from "lucide-react";
 import JSZip from "jszip";
 
@@ -89,6 +89,9 @@ const App: React.FC = () => {
     }));
   };
 
+  // Store refs to avoid dependency issues
+  const generateCodeRef = useRef<() => Promise<void>>();
+  
   // Generate code
   const generateCode = useCallback(async () => {
     if (!state.selectedNode) return;
@@ -131,6 +134,11 @@ const App: React.FC = () => {
       }));
     }
   }, [state.selectedNode, state.selectedFormat, state.serializerOptions]);
+  
+  // Update ref when generateCode changes
+  useEffect(() => {
+    generateCodeRef.current = generateCode;
+  }, [generateCode]);
 
   // Handle copy to clipboard
   const handleCopy = useCallback(async () => {
@@ -139,9 +147,24 @@ const App: React.FC = () => {
 
     try {
       await navigator.clipboard.writeText(activeFile.code);
-      // Show success toast/feedback
+      // Create temporary success message
+      const successMsg = document.createElement('div');
+      successMsg.textContent = 'Copied to clipboard!';
+      successMsg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; z-index: 1000; transition: opacity 0.3s;';
+      document.body.appendChild(successMsg);
+      setTimeout(() => {
+        successMsg.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(successMsg), 300);
+      }, 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
+      setState((prev) => ({
+        ...prev,
+        error: {
+          message: "Failed to copy to clipboard",
+          details: "Please check clipboard permissions",
+        },
+      }));
     }
   }, [state.generatedFiles, state.activeFileIndex]);
 
@@ -204,7 +227,9 @@ const App: React.FC = () => {
               generatedFiles: [],
             }));
             // Auto-generate code when selection changes
-            generateCode();
+            if (generateCodeRef.current) {
+              generateCodeRef.current();
+            }
           } else {
             setState((prev) => ({
               ...prev,
@@ -219,7 +244,7 @@ const App: React.FC = () => {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [generateCode]);
+  }, []);
 
   const activeFile = state.generatedFiles[state.activeFileIndex];
   const selectedSerializer = availableSerializers.find(

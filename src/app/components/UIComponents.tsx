@@ -1,59 +1,109 @@
 /**
- * Modern UI Components for FigVibe
- * Clean, elegant, and pixel-perfect components
+ * UI Components Library
+ * Reusable components for the FigVibe plugin interface
  */
 
-import React from "react";
-import * as Select from "@radix-ui/react-select";
-import * as Switch from "@radix-ui/react-switch";
-import * as Tabs from "@radix-ui/react-tabs";
-import { Check, ChevronDown, X, AlertCircle } from "lucide-react";
+import React, { forwardRef } from 'react';
+import * as Select from '@radix-ui/react-select';
+import * as Switch from '@radix-ui/react-switch';
+import { ChevronDown, AlertCircle, X } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 // Button Component
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost";
-  size?: "sm" | "md" | "lg";
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({
-  variant = "primary",
-  size = "md",
-  isLoading = false,
-  children,
-  disabled,
-  className = "",
-  ...props
-}) => {
-  const sizeClasses = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-3 text-base",
-  };
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'secondary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
+    const variants = {
+      primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+      secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary-hover',
+      ghost: 'bg-transparent hover:bg-surface-hover',
+      danger: 'bg-error text-white hover:bg-error/90',
+    };
 
-  const variantClasses = {
-    primary: "btn-primary",
-    secondary: "btn-secondary",
-    ghost: "btn-ghost",
+    const sizes = {
+      sm: 'h-8 px-3 text-sm',
+      md: 'h-10 px-4 text-sm',
+      lg: 'h-12 px-6 text-base',
+    };
+
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:pointer-events-none',
+          variants[variant],
+          sizes[size],
+          className
+        )}
+        disabled={disabled || isLoading}
+        {...props}
+      >
+        {isLoading && (
+          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        )}
+        {children}
+      </button>
+    );
+  }
+);
+Button.displayName = 'Button';
+
+// Badge Component
+interface BadgeProps {
+  variant?: 'success' | 'error' | 'warning' | 'info';
+  children: React.ReactNode;
+}
+
+export const Badge: React.FC<BadgeProps> = ({ variant = 'info', children }) => {
+  const variants = {
+    success: 'bg-success/10 text-success border-success/20',
+    error: 'bg-error/10 text-error border-error/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
+    info: 'bg-primary/10 text-primary border-primary/20',
   };
 
   return (
-    <button
-      className={`btn ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
-      disabled={disabled || isLoading}
-      {...props}
-    >
-      {isLoading ? (
-        <>
-          <span className="spinner mr-2" />
-          Loading...
-        </>
-      ) : (
-        children
-      )}
-    </button>
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border', variants[variant])}>
+      {children}
+    </span>
   );
 };
+
+// Input Component
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, error, ...props }, ref) => {
+    return (
+      <div className="space-y-1.5">
+        {label && (
+          <label className="text-sm font-medium text-foreground">{label}</label>
+        )}
+        <input
+          ref={ref}
+          className={cn(
+            'flex h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50',
+            error && 'border-error focus-visible:ring-error',
+            className
+          )}
+          {...props}
+        />
+        {error && (
+          <p className="text-xs text-error">{error}</p>
+        )}
+      </div>
+    );
+  }
+);
+Input.displayName = 'Input';
 
 // Select Component
 interface SelectOption {
@@ -67,50 +117,39 @@ interface SelectFieldProps {
   onValueChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
-  className?: string;
 }
 
 export const SelectField: React.FC<SelectFieldProps> = ({
   value,
   onValueChange,
   options,
-  placeholder = "Select an option",
-  className = "",
+  placeholder = 'Select an option',
 }) => {
   return (
     <Select.Root value={value} onValueChange={onValueChange}>
-      <Select.Trigger className={`select-trigger ${className}`}>
+      <Select.Trigger className="flex h-10 w-full items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm ring-offset-background placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50">
         <Select.Value placeholder={placeholder} />
         <Select.Icon>
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content
-          className="select-content"
-          position="popper"
-          sideOffset={8}
-        >
-          <Select.Viewport>
+        <Select.Content className="overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+          <Select.Viewport className="p-1">
             {options.map((option) => (
               <Select.Item
                 key={option.value}
                 value={option.value}
-                className="select-item"
+                className="relative flex cursor-pointer select-none items-center rounded px-2 py-1.5 text-sm outline-none focus:bg-surface-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
               >
                 <Select.ItemText>
-                  <div>
-                    <div className="font-medium">{option.label}</div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{option.label}</span>
                     {option.description && (
-                      <div className="text-xs text-muted mt-0.5">
-                        {option.description}
-                      </div>
+                      <span className="text-xs text-muted">{option.description}</span>
                     )}
                   </div>
                 </Select.ItemText>
-                <Select.ItemIndicator className="ml-auto">
-                  <Check className="h-4 w-4" />
-                </Select.ItemIndicator>
               </Select.Item>
             ))}
           </Select.Viewport>
@@ -122,128 +161,46 @@ export const SelectField: React.FC<SelectFieldProps> = ({
 
 // Switch Component
 interface SwitchFieldProps {
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
   label: string;
   description?: string;
-  disabled?: boolean;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
 }
 
 export const SwitchField: React.FC<SwitchFieldProps> = ({
-  checked,
-  onCheckedChange,
   label,
   description,
-  disabled = false,
+  checked,
+  onCheckedChange,
 }) => {
   return (
-    <div className="flex items-start space-x-3">
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <label className="text-sm font-medium text-foreground">{label}</label>
+        {description && (
+          <p className="text-xs text-muted">{description}</p>
+        )}
+      </div>
       <Switch.Root
         checked={checked}
         onCheckedChange={onCheckedChange}
-        disabled={disabled}
-        className="switch-root"
+        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-hover"
       >
-        <Switch.Thumb className="switch-thumb" />
+        <Switch.Thumb className="pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5" />
       </Switch.Root>
-      <div className="flex-1">
-        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          {label}
-        </label>
-        {description && (
-          <p className="text-xs text-muted mt-1">{description}</p>
-        )}
-      </div>
     </div>
-  );
-};
-
-// Input Component
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-}
-
-export const Input: React.FC<InputProps> = ({
-  label,
-  error,
-  className = "",
-  ...props
-}) => {
-  return (
-    <div className="w-full">
-      {label && (
-        <label className="text-sm font-medium text-foreground mb-1.5 block">
-          {label}
-        </label>
-      )}
-      <input
-        className={`input ${error ? "border-error-500 focus:ring-error-500" : ""} ${className}`}
-        {...props}
-      />
-      {error && (
-        <p className="text-xs text-error-600 mt-1 flex items-center">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          {error}
-        </p>
-      )}
-    </div>
-  );
-};
-
-// Tabs Component
-interface TabItem {
-  value: string;
-  label: string;
-  icon?: React.ReactNode;
-}
-
-interface TabsProps {
-  tabs: TabItem[];
-  value: string;
-  onValueChange: (value: string) => void;
-  children: React.ReactNode;
-}
-
-export const TabsComponent: React.FC<TabsProps> = ({
-  tabs,
-  value,
-  onValueChange,
-  children,
-}) => {
-  return (
-    <Tabs.Root value={value} onValueChange={onValueChange}>
-      <Tabs.List className="tabs-list">
-        {tabs.map((tab) => (
-          <Tabs.Trigger
-            key={tab.value}
-            value={tab.value}
-            className="tabs-trigger"
-          >
-            {tab.icon && <span className="mr-2">{tab.icon}</span>}
-            {tab.label}
-          </Tabs.Trigger>
-        ))}
-      </Tabs.List>
-      {children}
-    </Tabs.Root>
   );
 };
 
 // Card Component
 interface CardProps {
-  children: React.ReactNode;
   className?: string;
-  hoverable?: boolean;
+  children: React.ReactNode;
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
-  className = "",
-  hoverable = false,
-}) => {
+export const Card: React.FC<CardProps> = ({ className, children }) => {
   return (
-    <div className={`card ${hoverable ? "card-hover" : ""} ${className}`}>
+    <div className={cn('rounded-lg border border-border bg-surface p-4', className)}>
       {children}
     </div>
   );
@@ -254,21 +211,16 @@ interface EmptyStateProps {
   icon: React.ReactNode;
   title: string;
   description: string;
-  action?: React.ReactNode;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon,
-  title,
-  description,
-  action,
-}) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description }) => {
   return (
-    <div className="empty-state">
-      <div className="empty-state-icon">{icon}</div>
-      <h3 className="empty-state-title">{title}</h3>
-      <p className="empty-state-description">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
+    <div className="flex flex-1 items-center justify-center p-8">
+      <div className="text-center">
+        <div className="mx-auto mb-4 text-muted">{icon}</div>
+        <h3 className="text-lg font-medium text-foreground">{title}</h3>
+        <p className="mt-1 text-sm text-muted">{description}</p>
+      </div>
     </div>
   );
 };
@@ -280,23 +232,19 @@ interface ErrorMessageProps {
   onDismiss?: () => void;
 }
 
-export const ErrorMessage: React.FC<ErrorMessageProps> = ({
-  title,
-  message,
-  onDismiss,
-}) => {
+export const ErrorMessage: React.FC<ErrorMessageProps> = ({ title, message, onDismiss }) => {
   return (
-    <div className="rounded-lg border border-error-200 bg-error-50 p-4">
-      <div className="flex">
-        <AlertCircle className="h-5 w-5 text-error-600 mt-0.5" />
+    <div className="rounded-lg border border-error/20 bg-error/10 p-4">
+      <div className="flex items-start">
+        <AlertCircle className="h-5 w-5 text-error flex-shrink-0" />
         <div className="ml-3 flex-1">
-          <h3 className="text-sm font-medium text-error-800">{title}</h3>
-          <p className="text-sm text-error-700 mt-1">{message}</p>
+          <h3 className="text-sm font-medium text-error">{title}</h3>
+          <p className="mt-1 text-sm text-error/80">{message}</p>
         </div>
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className="ml-3 inline-flex rounded-md p-1.5 text-error-600 hover:bg-error-100 focus:outline-none focus:ring-2 focus:ring-error-600 focus:ring-offset-2 focus:ring-offset-error-50"
+            className="ml-3 inline-flex rounded-md p-1.5 text-error hover:bg-error/20 focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
           </button>
@@ -307,37 +255,18 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
 };
 
 // Loading Spinner Component
-export const LoadingSpinner: React.FC<{ size?: "sm" | "md" | "lg" }> = ({
-  size = "md",
-}) => {
-  const sizeClasses = {
-    sm: "h-4 w-4",
-    md: "h-6 w-6",
-    lg: "h-8 w-8",
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md' }) => {
+  const sizes = {
+    sm: 'h-4 w-4',
+    md: 'h-8 w-8',
+    lg: 'h-12 w-12',
   };
 
   return (
-    <div className="flex items-center justify-center p-4">
-      <div className={`spinner ${sizeClasses[size]}`} />
-    </div>
+    <div className={cn('animate-spin rounded-full border-2 border-current border-t-transparent', sizes[size])} />
   );
-};
-
-// Badge Component
-interface BadgeProps {
-  variant?: "success" | "error" | "warning";
-  children: React.ReactNode;
-}
-
-export const Badge: React.FC<BadgeProps> = ({
-  variant = "success",
-  children,
-}) => {
-  const variantClasses = {
-    success: "badge-success",
-    error: "badge-error",
-    warning: "badge-warning",
-  };
-
-  return <span className={`badge ${variantClasses[variant]}`}>{children}</span>;
 };

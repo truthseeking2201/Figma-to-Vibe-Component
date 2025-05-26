@@ -461,9 +461,16 @@ figma.ui.onmessage = (msg: PluginMessage) => {
 sendSelectionData();
 
 // Listen for selection changes
-figma.on("selectionchange", sendSelectionData);
+const selectionChangeHandler = () => sendSelectionData();
+figma.on("selectionchange", selectionChangeHandler);
 
 // Cleanup on close
 figma.on("close", () => {
-  // Plugin cleanup if needed
+  // Remove event listeners to prevent memory leaks
+  figma.off("selectionchange", selectionChangeHandler);
+  
+  // Clear any pending operations
+  figma.ui.postMessage({
+    type: "plugin-closing",
+  });
 });

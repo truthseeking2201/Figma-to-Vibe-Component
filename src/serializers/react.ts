@@ -261,7 +261,7 @@ function generateNodeStyles(
     styles.fontWeight = textStyle.fontWeight;
     styles.fontSize = toResponsiveUnit(textStyle.fontSize, "font");
 
-    if (typeof textStyle.lineHeight === "number") {
+    if (typeof textStyle.lineHeight === "number" && textStyle.fontSize > 0) {
       styles.lineHeight = (textStyle.lineHeight / textStyle.fontSize).toFixed(
         2,
       );
@@ -287,9 +287,12 @@ function generateNodeStyles(
     }
 
     // Text color
-    if (textNode.fills.length > 0 && textNode.fills[0].type === "solid") {
-      const color = textNode.fills[0].color;
-      styles.color = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+    if (textNode.fills.length > 0 && textNode.fills[0]?.type === "solid") {
+      const firstFill = textNode.fills[0];
+      if (firstFill.type === "solid" && firstFill.color) {
+        const color = firstFill.color;
+        styles.color = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+      }
     }
   }
 
